@@ -536,6 +536,15 @@
     renderGardenList();
   }
 
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function renderGardenList() {
     const list = document.getElementById("garden-list");
     if (!list) return;
@@ -553,7 +562,7 @@
         return `
           <div class="garden-item">
             <div class="garden-info">
-              <span class="garden-name">${g.name}</span>
+              <span class="garden-name">${escapeHtml(g.name)}</span>
               <span class="garden-date">${when}</span>
             </div>
             <div class="garden-actions">
@@ -872,8 +881,10 @@
   }
 
   function updatePoisonGas(x, y, i) {
-    meta[i] = (meta[i] || 0) + 1;
-    if (meta[i] > 500) { grid[i] = EMPTY; return; }
+    // meta ist ein Uint8Array (max. 255) – mit 50%-Chance pro Tick hochzählen und bei 250
+    // auflösen ergibt im Schnitt dieselbe ~500-Tick-Lebensdauer, ohne je zu überlaufen.
+    if (Math.random() < 0.5) meta[i] = (meta[i] || 0) + 1;
+    if (meta[i] >= 250) { grid[i] = EMPTY; return; }
     for (const [nx, ny] of neighbors4(x, y)) {
       if (inBounds(nx, ny) && grid[idx(nx, ny)] === PLANT && Math.random() < 0.1) {
         grid[idx(nx, ny)] = EMPTY; meta[idx(nx, ny)] = 0;
@@ -2073,16 +2084,17 @@
       if (grid[i] !== EMPTY) { grid[i] = EMPTY; meta[i] = 0; }
       return 0;
     }
-    // Fische locker verteilen, damit ein Pinselklick einen Schwarm statt eines Klumpens setzt
-    if (tool === FISH && Math.random() > 0.22) return 0;
-    if (tool === FISH && grid[i] === WATER) {
+    // Fisch geht ausschließlich in Wasser, nie auf trockenen/leeren Untergrund; locker
+    // verteilen, damit ein Pinselklick einen Schwarm statt eines Klumpens setzt
+    if (tool === FISH) {
+      if (grid[i] !== WATER || Math.random() > 0.22) return 0;
       grid[i] = FISH;
       meta[i] = Math.random() < 0.5 ? 0 : 1;
       return 1;
     }
     if (grid[i] === EMPTY) {
       grid[i] = tool;
-      meta[i] = tool === FIRE ? FIRE_FUEL : tool === FISH ? (Math.random() < 0.5 ? 0 : 1) : 0;
+      meta[i] = tool === FIRE ? FIRE_FUEL : 0;
       if (tool === WIRE) stats.wirePlaced = (stats.wirePlaced || 0) + 1;
       return 1;
     }
@@ -2136,6 +2148,10 @@
   function floodFillAt(x, y) {
     if (!inBounds(x, y)) return;
     if (tool < 0) return;
+    if (tool === FISH) {
+      showToast("🐟 Fisch lässt sich nur von Hand ins Wasser malen, nicht füllen");
+      return;
+    }
     const startI = idx(x, y);
     const target = grid[startI];
     if (tool === target) return;
@@ -2239,8 +2255,14 @@
         ctx.fillRect(minX, minY, 1, maxY - minY + 1);
         ctx.fillRect(maxX, minY, 1, maxY - minY + 1);
       } else if (shapeMode === "line") {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-        for (const [cx, cy] of bresenhamCells(ax, sy, bx, ey)) ctx.fillRect(cx, cy, 1, 1);
+        // Vorschau in voller Pinselbreite zeichnen, damit sie zum tatsächlichen Ergebnis passt
+        // (paintLine stempelt beim Loslassen Kreise mit brushRadius entlang der Linie).
+        ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+        for (const [cx, cy] of bresenhamCells(ax, sy, bx, ey)) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, brushRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
   }
@@ -2745,6 +2767,8 @@
       const rect = viewportEl.getBoundingClientRect();
       zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.25 : 0.8);
     }, { passive: false });
+    // Pan-Grenzen neu berechnen, wenn sich die Viewport-Größe ändert (Fenster/Orientierung)
+    window.addEventListener("resize", () => applyView());
   }
 
   document.getElementById("brush-slider").addEventListener("input", (e) => {

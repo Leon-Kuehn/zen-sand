@@ -846,14 +846,20 @@
         return;
       }
     }
-    const belowY = y + 1;
-    if (belowY < ROWS && grid[idx(x, belowY)] === EMPTY) {
-      moveCell(i, idx(x, belowY));
-      return;
-    }
-
     const dir = meta[i] & 1;
     const carrying = (meta[i] >> 1) & 1;
+
+    // Schwerkraft gilt nur für unbeladene Ameisen (sie "stehen" im Tunnel); eine tragende
+    // Ameise, die gerade nach oben gegraben/gelaufen ist, hinterlässt zwangsläufig eine leere
+    // Zelle direkt unter sich – würde Schwerkraft hier greifen, würde das jeden Aufstieg
+    // im nächsten Tick sofort wieder rückgängig machen.
+    if (!carrying) {
+      const belowY = y + 1;
+      if (belowY < ROWS && grid[idx(x, belowY)] === EMPTY) {
+        moveCell(i, idx(x, belowY));
+        return;
+      }
+    }
 
     if (carrying) {
       const timer = meta[i] >> 2;
@@ -899,7 +905,8 @@
     }
 
     if (Math.random() < 0.12) {
-      for (const [nx, ny] of neighbors4(x, y)) {
+      // zufällige Reihenfolge, damit Ameisen nicht immer zuerst nach links graben
+      for (const [nx, ny] of neighbors4(x, y).sort(() => Math.random() - 0.5)) {
         if (inBounds(nx, ny) && grid[idx(nx, ny)] === SAND) {
           grid[idx(nx, ny)] = EMPTY;
           meta[i] = dir | 2 | (30 << 2);

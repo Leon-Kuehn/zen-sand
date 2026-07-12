@@ -5,8 +5,8 @@
   const EMPTY = 0, SAND = 1, STONE = 2, WATER = 3, PLANT = 4, FIRE = 5, STEAM = 6,
         OIL = 7, LAVA = 8, ICE = 9, SNOW = 10, HONEY = 11, GLASS = 12, RAINBOW = 13,
         ACID = 14, MUD = 15, MERCURY = 16, SPORE = 17, FUSE = 18, CRYSTAL = 19,
-        POISON_GAS = 20, QUICKSAND = 21, WIRE = 22, BATTERY = 23, FISH = 24;
-  const MAX_MATERIAL_ID = FISH;
+        POISON_GAS = 20, QUICKSAND = 21, WIRE = 22, BATTERY = 23, FISH = 24, ANT = 25;
+  const MAX_MATERIAL_ID = ANT;
   const WIND_TOOL = -1, BOMB_TOOL = -2, DYNAMITE_TOOL = -3, NUKE_TOOL = -4;
 
   const ACTION_TOOLS = [
@@ -55,6 +55,7 @@
     { id: MERCURY, label: "Quecksilber", icon: "🌡️", achievement: "schwermetall" },
     { id: QUICKSAND, label: "Treibsand", icon: "🌀", achievement: "wuestenwanderer" },
     { id: FISH, label: "Fisch", icon: "🐟", achievement: "biotop" },
+    { id: ANT, label: "Ameise", icon: "🐜", achievement: "sandburg" },
   ];
 
   const ACHIEVEMENTS = [
@@ -79,6 +80,7 @@
     { key: "wuestenwanderer", label: "Wüstenwanderer", desc: "Platziere insgesamt 1500 Körner", target: 1500, get: (s) => s.totalPlaced, unlocks: "Treibsand" },
     { key: "elektriker", label: "Elektriker", desc: "Platziere 220 Draht-Zellen", target: 220, get: (s) => s.wirePlaced || 0, unlocks: "Batterie" },
     { key: "biotop", label: "Biotop", desc: "Halte gleichzeitig 100 Pflanzen-Zellen auf der Fläche", target: 100, get: (s) => s.peakPlants || 0, unlocks: "Fisch" },
+    { key: "sandburg", label: "Sandburg", desc: "Halte gleichzeitig 600 Sand-Zellen auf der Fläche", target: 600, get: (s) => s.peakSand || 0, unlocks: "Ameisen" },
   ];
 
   const FIRE_FUEL = 70;
@@ -156,7 +158,7 @@
     [OIL]: 130, [LAVA]: 100, [ICE]: 560, [SNOW]: 620, [HONEY]: 160,
     [GLASS]: 700, [RAINBOW]: 500, [ACID]: 300, [MUD]: 80, [MERCURY]: 60,
     [SPORE]: 700, [FUSE]: 150, [CRYSTAL]: 900, [POISON_GAS]: 110, [QUICKSAND]: 95,
-    [WIRE]: 420, [BATTERY]: 240, [FISH]: 520,
+    [WIRE]: 420, [BATTERY]: 240, [FISH]: 520, [ANT]: 380,
   };
 
   let lastBlipTime = 0;
@@ -410,6 +412,7 @@
     mudFormed: 0,
     wirePlaced: 0,
     peakPlants: 0,
+    peakSand: 0,
   };
   let achievementsUnlocked = new Set();
 
@@ -832,6 +835,87 @@
     if (Math.random() < 0.4) meta[i] = air * 2 + (dir ^ 1);
   }
 
+  // Ameisen-Meta: Bit 0 = Blickrichtung, Bit 1 = trägt gerade ein Sandkorn, Bits 2-7 = Timer
+  // bis zum spätestens Ablegen (verhindert endloses Herumtragen, falls kein Weg nach oben führt).
+  function updateAnt(x, y, i) {
+    for (const [nx, ny] of neighbors4(x, y)) {
+      if (!inBounds(nx, ny)) continue;
+      const nm = grid[idx(nx, ny)];
+      if (nm === FIRE || nm === LAVA || nm === ACID || nm === WATER) {
+        grid[i] = EMPTY; meta[i] = 0;
+        return;
+      }
+    }
+    const belowY = y + 1;
+    if (belowY < ROWS && grid[idx(x, belowY)] === EMPTY) {
+      moveCell(i, idx(x, belowY));
+      return;
+    }
+
+    const dir = meta[i] & 1;
+    const carrying = (meta[i] >> 1) & 1;
+
+    if (carrying) {
+      const timer = meta[i] >> 2;
+      if (timer <= 0) {
+        const dropSpots = [[x, y - 1], [x - 1, y], [x + 1, y], [x, y + 1]];
+        let dropped = false;
+        for (const [dx, dy] of dropSpots) {
+          if (inBounds(dx, dy) && grid[idx(dx, dy)] === EMPTY) {
+            grid[idx(dx, dy)] = SAND; meta[idx(dx, dy)] = 0;
+            dropped = true;
+            break;
+          }
+        }
+        meta[i] = dropped ? dir : (dir | 2 | (10 << 2));
+        return;
+      }
+      const nextTimer = timer - 1;
+      const aboveI = y > 0 ? idx(x, y - 1) : -1;
+      if (aboveI >= 0 && grid[aboveI] === EMPTY) {
+        meta[i] = dir | 2 | (nextTimer << 2);
+        moveCell(i, aboveI);
+        return;
+      }
+      if (aboveI >= 0 && grid[aboveI] === SAND && Math.random() < 0.4) {
+        grid[aboveI] = EMPTY;
+        meta[i] = dir | 2 | (nextTimer << 2);
+        moveCell(i, aboveI);
+        return;
+      }
+      const sideX = x + (dir === 1 ? 1 : -1);
+      if (inBounds(sideX, y)) {
+        const sideI = idx(sideX, y);
+        if (grid[sideI] === EMPTY) { meta[i] = dir | 2 | (nextTimer << 2); moveCell(i, sideI); return; }
+        if (grid[sideI] === SAND && Math.random() < 0.25) {
+          grid[sideI] = EMPTY;
+          meta[i] = dir | 2 | (nextTimer << 2);
+          moveCell(i, sideI);
+          return;
+        }
+      }
+      meta[i] = (Math.random() < 0.1 ? dir ^ 1 : dir) | 2 | (nextTimer << 2);
+      return;
+    }
+
+    if (Math.random() < 0.12) {
+      for (const [nx, ny] of neighbors4(x, y)) {
+        if (inBounds(nx, ny) && grid[idx(nx, ny)] === SAND) {
+          grid[idx(nx, ny)] = EMPTY;
+          meta[i] = dir | 2 | (30 << 2);
+          return;
+        }
+      }
+    }
+    const sideX = x + (dir === 1 ? 1 : -1);
+    if (inBounds(sideX, y)) {
+      const sideI = idx(sideX, y);
+      if (grid[sideI] === EMPTY) { moveCell(i, sideI); return; }
+      if (grid[sideI] === SAND && Math.random() < 0.2) { grid[sideI] = EMPTY; moveCell(i, sideI); return; }
+    }
+    if (Math.random() < 0.15) meta[i] = dir ^ 1;
+  }
+
   function updateWire(x, y, i) {
     if (meta[i] === 0) return;
     // Ladung wandert als Welle: nur frisch geladene Zellen stecken Nachbarn an,
@@ -1138,6 +1222,7 @@
       case WIRE: updateWire(x, y, i); break;
       case BATTERY: updateBattery(x, y, i); break;
       case FISH: updateFish(x, y, i); break;
+      case ANT: updateAnt(x, y, i); break;
       default: break;
     }
   }
@@ -1254,6 +1339,11 @@
         const v = hash(x, y);
         const shimmer = (Math.sin(tick * 0.2 + x * 0.8 + y * 0.6) + 1) / 2;
         return hslToRgb(14 + v * 18, 85, 52 + shimmer * 10);
+      }
+      case ANT: {
+        const carrying = (metaVal >> 1) & 1;
+        const v = hash(x, y);
+        return carrying ? hslToRgb(32, 45, 32 + v * 8) : hslToRgb(15, 45, 15 + v * 6);
       }
       default:
         return null;
@@ -2092,6 +2182,13 @@
       meta[i] = Math.random() < 0.5 ? 0 : 1;
       return 1;
     }
+    // Ameisen graben sich nur durch bestehenden Sand, nie in die leere Luft
+    if (tool === ANT) {
+      if (grid[i] !== SAND || Math.random() > 0.3) return 0;
+      grid[i] = ANT;
+      meta[i] = Math.random() < 0.5 ? 0 : 1;
+      return 1;
+    }
     if (grid[i] === EMPTY) {
       grid[i] = tool;
       meta[i] = tool === FIRE ? FIRE_FUEL : 0;
@@ -2150,6 +2247,10 @@
     if (tool < 0) return;
     if (tool === FISH) {
       showToast("🐟 Fisch lässt sich nur von Hand ins Wasser malen, nicht füllen");
+      return;
+    }
+    if (tool === ANT) {
+      showToast("🐜 Ameisen lassen sich nur von Hand in Sand malen, nicht füllen");
       return;
     }
     const startI = idx(x, y);
@@ -2312,7 +2413,7 @@
   const DEFAULT_STATS = {
     fireExtinguished: 0, plantsIgnited: 0, iceMelted: 0, glassCreated: 0,
     lavaWaterReactions: 0, peakWater: 0, peakFillPct: 0, explosionsTriggered: 0,
-    mudFormed: 0, wirePlaced: 0, peakPlants: 0,
+    mudFormed: 0, wirePlaced: 0, peakPlants: 0, peakSand: 0,
   };
 
   async function resetProgress() {
@@ -2339,6 +2440,7 @@
     { key: "totalPlaced", label: "Körner insgesamt platziert" },
     { key: "peakWater", label: "Meiste Wasser-Zellen gleichzeitig" },
     { key: "peakPlants", label: "Meiste Pflanzen-Zellen gleichzeitig" },
+    { key: "peakSand", label: "Meiste Sand-Zellen gleichzeitig" },
     { key: "peakFillPct", label: "Höchste Flächenfüllung", suffix: "%" },
     { key: "fireExtinguished", label: "Feuer mit Wasser gelöscht" },
     { key: "iceMelted", label: "Eis geschmolzen" },
@@ -2376,7 +2478,7 @@
   }
 
   function sampleStats() {
-    let waterCount = 0, filledCount = 0, fireCount = 0, steamCount = 0, lavaCount = 0, chargeCount = 0, plantCount = 0;
+    let waterCount = 0, filledCount = 0, fireCount = 0, steamCount = 0, lavaCount = 0, chargeCount = 0, plantCount = 0, sandCount = 0;
     for (let i = 0; i < grid.length; i++) {
       const g = grid[i];
       if (g !== EMPTY) filledCount++;
@@ -2386,8 +2488,10 @@
       else if (g === LAVA) lavaCount++;
       else if (g === WIRE && meta[i] > 0) chargeCount++;
       else if (g === PLANT) plantCount++;
+      else if (g === SAND) sandCount++;
     }
     if (plantCount > (stats.peakPlants || 0)) stats.peakPlants = plantCount;
+    if (sandCount > (stats.peakSand || 0)) stats.peakSand = sandCount;
     materialCounts.water = waterCount;
     materialCounts.fire = fireCount;
     materialCounts.steam = steamCount;

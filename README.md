@@ -24,6 +24,7 @@ Darüber hinaus gibt es Spezialmaterialien, die nur über Herausforderungen (sie
 - **Quecksilber** – dichteste Flüssigkeit im Spiel, sinkt durch Wasser, Öl, Honig und sogar Sand hindurch, spreizt sich kaum seitlich
 - **Treibsand** – sieht aus wie Sand, lässt aber alles was darauf liegt (Sand, Stein, Pflanze, Glas) langsam einsinken und verschwinden
 - **Fisch** – kleine Kois, die gemächlich durchs Wasser schwimmen, an Hindernissen wenden und ab und zu die Tiefe wechseln. Können direkt ins Wasser gemalt werden. An Land zappeln sie und ersticken nach einer Weile; Feuer, Lava, Säure und Strom im Wasser sind tödlich – Vorsicht mit Elektrik am Teich!
+- **Ameise** – gräbt sich durch Sand und hinterlässt sichtbare Tunnel; trägt aufgesammelte Körner nach oben und häuft sie dort zu kleinen Sandhügeln auf. Können nur auf bestehenden Sand gemalt werden. Feuer, Lava, Säure und Wasser sind tödlich.
 
 ### ⚡ Elektrizität
 - **Draht** – statisches, leitendes Metall (säurefest!). Wird er geladen, wandert die Ladung als sichtbare gelbe Welle durchs Netz. Geladene Drähte zünden Öl und Zündschnüre, schmelzen langsam Eis.
@@ -31,7 +32,7 @@ Darüber hinaus gibt es Spezialmaterialien, die nur über Herausforderungen (sie
 - **Wasser leitet!** Geladene Drähte elektrisieren angrenzendes Wasser – die Ladung breitet sich durch den ganzen Wasserkörper aus (hellblau flackernd), einzelne Zellen verdampfen zischend. Und Wasser lädt umgekehrt wieder Drähte – Vorsicht bei nassen Schaltkreisen.
 - **Blitze laden**: Ein Gewitter-Blitz, der Draht oder Wasser trifft, jagt einen einzelnen Ladungspuls durchs Netz – perfekt für blitzgetriggerte Fallen.
 
-Herausforderungen zum Freischalten der Spezialmaterialien: Feuerlöscher→Öl, Seebaumeister→Eis, Frostig→Schnee, Waldbrand→Lava, Alchemist→Glas, Geologe→Honig, Vollbild→Regenbogensand, Glasbläser→Säure, Sumpfland→Schlamm, Ozeanmeister→Kristall, Flächenbrand→Giftgas, Kettenreaktion→Zündschnur, Schwermetall→Quecksilber, Wüstenwanderer→Treibsand, Elektriker→Batterie, Biotop→Fisch.
+Herausforderungen zum Freischalten der Spezialmaterialien: Feuerlöscher→Öl, Seebaumeister→Eis, Frostig→Schnee, Waldbrand→Lava, Alchemist→Glas, Geologe→Honig, Vollbild→Regenbogensand, Glasbläser→Säure, Sumpfland→Schlamm, Ozeanmeister→Kristall, Flächenbrand→Giftgas, Kettenreaktion→Zündschnur, Schwermetall→Quecksilber, Wüstenwanderer→Treibsand, Elektriker→Batterie, Biotop→Fisch, Sandburg→Ameisen.
 
 ## Atmosphäre (immer aktiv)
 Eine reine Deko-Ebene über dem Sandkasten – greift nie in die Physik ein und lebt auch bei pausierter Simulation weiter, im Takt des Tag/Nacht-Zyklus (~90 s, per Regler auch manuell einstellbar, siehe unten):
